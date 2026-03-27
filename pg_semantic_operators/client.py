@@ -1,4 +1,6 @@
-"""模型调用客户端"""
+"""
+模型调用客户端
+"""
 
 import json
 from typing import Any
@@ -58,10 +60,48 @@ def _call_ollama(model_name: str, prompt: str, **kwargs) -> str:
     return response.json()["response"]
 
 
+def _call_minimax(model_name: str, prompt: str, **kwargs) -> str:
+    """调用 Minimax API (OpenAI 兼容)"""
+    from openai import OpenAI
+    
+    config = get_model_config(model_name)
+    client = OpenAI(
+        api_key=config["api_key"],
+        base_url=config.get("base_url", "https://api.minimax.chat/v1")
+    )
+    
+    response = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": prompt}],
+        **kwargs
+    )
+    return response.choices[0].message.content
+
+
+def _call_glm(model_name: str, prompt: str, **kwargs) -> str:
+    """调用智谱 GLM API (OpenAI 兼容)"""
+    from openai import OpenAI
+    
+    config = get_model_config(model_name)
+    client = OpenAI(
+        api_key=config["api_key"],
+        base_url=config.get("base_url", "https://open.bigmodel.cn/api/paas/v4")
+    )
+    
+    response = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": prompt}],
+        **kwargs
+    )
+    return response.choices[0].message.content
+
+
 PROVIDER_HANDLERS = {
     "openai": _call_openai,
     "anthropic": _call_anthropic,
-    "ollama": _call_ollama
+    "ollama": _call_ollama,
+    "minimax": _call_minimax,
+    "glm": _call_glm,
 }
 
 

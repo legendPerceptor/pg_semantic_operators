@@ -1,0 +1,23 @@
+services:
+  postgres:
+    build: .
+    container_name: pg_semantic
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: semantic_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/pg_semantic_operators.sql:/docker-entrypoint-initdb.d/01_extension.sql:ro
+      - ./pg_semantic_operators:/usr/local/lib/python3.12/site-packages/pg_semantic_operators:ro
+      - ./.env:/etc/pg_semantic/.env:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
