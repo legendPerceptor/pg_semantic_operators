@@ -3,20 +3,53 @@
 """
 
 import json
-from typing import Any
+import re
+from typing import Any, List
 from .config import get_model_config
+
+
+def _split_prompt(prompt: str) -> List[dict]:
+    """
+    尝试分离 system prompt 和 user prompt
+
+    规则：
+    - 如果 prompt 中包含 "```" 代码块或明显的分段，尝试分离
+    - 否则整个作为 user message
+    - 如果有 "现在请判断："、"请根据以上" 等标记，在标记处分割
+    """
+    # 尝试找到分割点
+    split_patterns = [
+        r'(?:现在请判断|请根据以上|请基于上述|根据上述规则)',
+        r'\n\n(?:用户请求|User request|问题|Question)：',
+    ]
+
+    for pattern in split_patterns:
+        match = re.search(pattern, prompt, re.IGNORECASE)
+        if match:
+            split_pos = match.end()
+            system_part = prompt[:split_pos].strip()
+            user_part = prompt[split_pos:].strip()
+
+            if user_part:
+                return [
+                    {"role": "system", "content": system_part},
+                    {"role": "user", "content": user_part}
+                ]
+
+    # 没有找到分割点，整个作为 user message
+    return [{"role": "user", "content": prompt}]
 
 
 def _call_openai(model_name: str, prompt: str, **kwargs) -> str:
     """调用 OpenAI API"""
     from openai import OpenAI
-    
+
     config = get_model_config(model_name)
     client = OpenAI(
         api_key=config["api_key"],
         base_url=config.get("base_url", "https://api.openai.com/v1")
     )
-    
+
     response = client.chat.completions.create(
         model=config["model"],
         messages=[{"role": "user", "content": prompt}],
@@ -28,10 +61,10 @@ def _call_openai(model_name: str, prompt: str, **kwargs) -> str:
 def _call_anthropic(model_name: str, prompt: str, **kwargs) -> str:
     """调用 Anthropic API"""
     import anthropic
-    
+
     config = get_model_config(model_name)
     client = anthropic.Anthropic(api_key=config["api_key"])
-    
+
     response = client.messages.create(
         model=config["model"],
         max_tokens=kwargs.get("max_tokens", 4096),
@@ -63,11 +96,11 @@ def _call_ollama(model_name: str, prompt: str, **kwargs) -> str:
 def _call_minimax(model_name: str, prompt: str, **kwargs) -> str:
     """调用 Minimax API (Anthropic 兼容)"""
     import requests
-    
+
     config = get_model_config(model_name)
     base_url = config.get("base_url", "https://api.minimaxi.com/anthropic")
     api_key = config["api_key"]
-    
+
     response = requests.post(
         f"{base_url}/v1/messages",
         headers={
@@ -83,19 +116,28 @@ def _call_minimax(model_name: str, prompt: str, **kwargs) -> str:
         timeout=kwargs.get("timeout", 120)
     )
     response.raise_for_status()
-    return response.json()["content"][0]["text"]
+    response_json = response.json()
+
+    # minimax API 返回的 content 数组可能包含多个元素
+    # 需要找到 type 为 "text" 的元素
+    for item in response_json.get("content", []):
+        if item.get("type") == "text":
+            return item.get("text", "")
+
+    # 如果没找到 text 类型，返回第一个元素的 text（兼容旧格式）
+    return response_json["content"][0].get("text", "")
 
 
 def _call_glm(model_name: str, prompt: str, **kwargs) -> str:
     """调用智谱 GLM API (OpenAI 兼容)"""
     from openai import OpenAI
-    
+
     config = get_model_config(model_name)
     client = OpenAI(
         api_key=config["api_key"],
         base_url=config.get("base_url", "https://open.bigmodel.cn/api/paas/v4")
     )
-    
+
     response = client.chat.completions.create(
         model=config["model"],
         messages=[{"role": "user", "content": prompt}],
