@@ -1,10 +1,10 @@
 # Makefile for pg_semantic_operators
 
-PGSHARE = $(shell pg_config --sharedir)
+PGSHARE = $(shell pg_config --sharedir 2>/dev/null || echo "/usr/share/postgresql/16")
 EXTENSION = pg_semantic_operators
 DATA = sql/$(EXTENSION).sql
 
-.PHONY: install install-python all clean test uninstall help
+.PHONY: install install-python all clean test test-models uninstall help
 
 help:
 	@echo "pg_semantic_operators - PostgreSQL 语义算子扩展"
@@ -13,7 +13,8 @@ help:
 	@echo "  make install        - 安装SQL扩展到PostgreSQL"
 	@echo "  make install-python - 使用uv安装Python依赖"
 	@echo "  make all            - 完整安装（Python依赖 + SQL扩展）"
-	@echo "  make test           - 运行测试"
+	@echo "  make test           - 运行SQL测试"
+	@echo "  make test-models    - 测试模型调用"
 	@echo "  make uninstall      - 卸载扩展"
 	@echo ""
 	@echo "使用示例:"
@@ -47,8 +48,16 @@ clean:
 	@echo "清理完成"
 
 test:
-	@echo "运行测试..."
+	@echo "运行SQL测试..."
 	@psql -d test -f sql/$(EXTENSION).sql
+
+test-models:
+	@echo "测试模型调用..."
+	@python3 tests/test_models.py
+
+test-quick:
+	@echo "快速测试模型 (用法: make test-quick MODEL=gpt-4o)"
+	@python3 tests/quick_test.py $(MODEL)
 
 uninstall:
 	rm -f $(PGSHARE)/extension/$(EXTENSION).sql

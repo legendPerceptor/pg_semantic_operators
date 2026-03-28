@@ -10,6 +10,11 @@ dependencies = [
     "requests",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -19,3 +24,6 @@ packages = ["pg_semantic_operators"]
 
 [tool.hatch.build.targets.sdist]
 include = ["pg_semantic_operators"]
+
+[project.scripts]
+test-models = "tests.test_models:main"

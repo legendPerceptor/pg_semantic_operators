@@ -5,6 +5,8 @@
 import os
 import json
 
+_user_config = None
+
 def _load_env_file():
     """加载 .env 文件"""
     env_paths = [
@@ -62,18 +64,49 @@ DEFAULT_CONFIG = {
 
 CONFIG_FILE = os.getenv("PG_SEMANTIC_CONFIG", "/etc/pg_semantic/models.json")
 
+_config_search_paths = [
+    os.path.join(os.getcwd(), "models.json"),
+    os.path.expanduser("~/.pg_semantic/models.json"),
+    "/etc/pg_semantic/models.json",
+]
+
+
+def _find_config_file() -> str | None:
+    """查找配置文件"""
+    if os.path.exists(CONFIG_FILE):
+        return CONFIG_FILE
+    for path in _config_search_paths:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def _load_user_config() -> dict:
+    """加载用户配置文件"""
+    global _user_config
+    if _user_config is not None:
+        return _user_config
+    
+    config_path = _find_config_file()
+    if config_path:
+        try:
+            with open(config_path, 'r') as f:
+                _user_config = json.load(f)
+                return _user_config
+        except Exception:
+            pass
+    
+    return {}
+
 
 def get_model_config(model_name: str) -> dict:
     """获取模型配置"""
-    try:
-        with open(CONFIG_FILE, 'r') as f:
-            user_config = json.load(f)
-            if model_name in user_config:
-                return user_config[model_name]
-    except Exception:
-        pass
+    user_config = _load_user_config()
     
-    if model_name in DEFAULT_CONFIG:
+    if model_name in user_config:
+        return user_config[model_name]
+    
+    if not user_config and model_name in DEFAULT_CONFIG:
         return DEFAULT_CONFIG[model_name]
     
     raise ValueError(f"Unknown model: {model_name}")
@@ -81,9 +114,9 @@ def get_model_config(model_name: str) -> dict:
 
 def list_models() -> list[str]:
     """列出所有可用模型"""
-    try:
-        with open(CONFIG_FILE, 'r') as f:
-            user_config = json.load(f)
-            return list(user_config.keys())
-    except Exception:
-        return list(DEFAULT_CONFIG.keys())
+    user_config = _load_user_config()
+    
+    if user_config:
+        return list(user_config.keys())
+    
+    return list(DEFAULT_CONFIG.keys())

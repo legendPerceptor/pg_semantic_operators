@@ -61,21 +61,29 @@ def _call_ollama(model_name: str, prompt: str, **kwargs) -> str:
 
 
 def _call_minimax(model_name: str, prompt: str, **kwargs) -> str:
-    """调用 Minimax API (OpenAI 兼容)"""
-    from openai import OpenAI
+    """调用 Minimax API (Anthropic 兼容)"""
+    import requests
     
     config = get_model_config(model_name)
-    client = OpenAI(
-        api_key=config["api_key"],
-        base_url=config.get("base_url", "https://api.minimax.chat/v1")
-    )
+    base_url = config.get("base_url", "https://api.minimaxi.com/anthropic")
+    api_key = config["api_key"]
     
-    response = client.chat.completions.create(
-        model=config["model"],
-        messages=[{"role": "user", "content": prompt}],
-        **kwargs
+    response = requests.post(
+        f"{base_url}/v1/messages",
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+        },
+        json={
+            "model": config["model"],
+            "max_tokens": kwargs.get("max_tokens", 4096),
+            "messages": [{"role": "user", "content": prompt}]
+        },
+        timeout=kwargs.get("timeout", 120)
     )
-    return response.choices[0].message.content
+    response.raise_for_status()
+    return response.json()["content"][0]["text"]
 
 
 def _call_glm(model_name: str, prompt: str, **kwargs) -> str:

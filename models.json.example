@@ -1,0 +1,30 @@
+{
+  "gpt-4o": {
+    "provider": "openai",
+    "model": "gpt-4o",
+    "api_key": "sk-your-openai-key",
+    "base_url": "https://api.openai.com/v1"
+  },
+  "claude-3-5-sonnet": {
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet-20241022",
+    "api_key": "your-anthropic-key"
+  },
+  "minimax": {
+    "provider": "minimax",
+    "model": "MiniMax-M2.7",
+    "api_key": "your-minimax-key",
+    "base_url": "https://api.minimaxi.com/anthropic"
+  },
+  "glm-4": {
+    "provider": "glm",
+    "model": "glm-4-flash",
+    "api_key": "your-glm-key",
+    "base_url": "https://open.bigmodel.cn/api/paas/v4"
+  },
+  "qwen-local": {
+    "provider": "ollama",
+    "model": "qwen2.5-coder:7b",
+    "base_url": "http://localhost:11434"
+  }
+}
