@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pg_semantic_operators.config import _load_env_file
 from pg_semantic_operators.client import call_model
+from pg_semantic_operators import AI_FILTER_SYSTEM_PROMPT
 
 _load_env_file()
 
@@ -17,41 +18,8 @@ model_name = "gpt-4o"
 condition = "金额大于1000"
 row_data = {"金额": 1500}
 
-system_prompt = """你是数据判断助手。判断数据是否符合条件，只回答 true 或 false。
-
-【规则】
-1. 严格按语义判断，只输出 true 或 false，不要其他内容
-2. 数值大于1000是指 > 1000（不含1000）
-3. 数值小于1000是指 < 1000（不含1000）
-4. 数值大于等于1000是指 >= 1000
-
-【示例】
-输入：
-条件：金额大于1000
-数据：{"金额": 1500}
-输出：true
-
-输入：
-条件：金额大于1000
-数据：{"金额": 500}
-输出：false
-
-输入：
-条件：金额大于1000
-数据：{"金额": 1000}
-输出：false
-
-输入：
-条件：状态是已完成
-数据：{"状态": "已完成"}
-输出：true
-
-输入：
-条件：状态是已完成
-数据：{"状态": "进行中"}
-输出：false
-
-【待判断】"""
+# Use the actual prompt from the operator module
+system_prompt = AI_FILTER_SYSTEM_PROMPT
 
 user_prompt = f"""条件：{condition}
 数据：{json.dumps(row_data, ensure_ascii=False)}"""
