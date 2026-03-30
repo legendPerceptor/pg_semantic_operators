@@ -1,6 +1,8 @@
 services:
   postgres:
-    build: .
+    build:
+      context: .
+      network: host
     container_name: pg_semantic
     environment:
       POSTGRES_USER: postgres
