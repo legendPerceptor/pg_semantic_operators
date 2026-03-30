@@ -29,6 +29,6 @@ RUN pip3 install --break-system-packages .
 # Copy SQL extension file (runs on container first start)
 COPY sql/pg_semantic_operators--1.0.sql /docker-entrypoint-initdb.d/
 
-# Install extension SQL into PostgreSQL's extension directory
-RUN mkdir -p /usr/share/postgresql/18/extension/ && \
-    cp /docker-entrypoint-initdb.d/pg_semantic_operators--1.0.sql /usr/share/postgresql/18/extension/
+# Install extension files into PostgreSQL's extension directory
+COPY pg_semantic_operators.control /usr/share/postgresql/18/extension/
+RUN cp /docker-entrypoint-initdb.d/pg_semantic_operators--1.0.sql /usr/share/postgresql/18/extension/
