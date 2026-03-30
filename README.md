@@ -24,6 +24,28 @@ WHERE ai_filter('minimax', '金额大于1000且状态是已完成',
                 jsonb_build_object('status', status, 'amount', amount));
 ```
 
+### ai_image_filter(model_name, image_source, description) → boolean
+根据描述判断图片是否符合条件，返回 true/false。image_source 可以是 URL 或本地文件路径。
+
+```sql
+-- 判断网络图片
+SELECT ai_image_filter('gpt-4o', 'https://example.com/image.jpg', '产品照片');
+
+-- 判断本地图片
+SELECT ai_image_filter('gpt-4o', '/path/to/image.jpg', '包含猫');
+```
+
+### ai_image_describe(model_name, image_source) → text
+生成图片的自然语言描述。image_source 可以是 URL 或本地文件路径。
+
+```sql
+-- 描述网络图片
+SELECT ai_image_describe('gpt-4o', 'https://example.com/image.jpg');
+
+-- 描述本地图片
+SELECT ai_image_describe('gpt-4o', '/path/to/image.jpg');
+```
+
 ### get_schema_info() → text
 获取当前数据库 public schema 的表结构信息。
 
@@ -32,13 +54,13 @@ WHERE ai_filter('minimax', '金额大于1000且状态是已完成',
 
 ## 支持的模型
 
-| 模型名 | Provider | 说明 |
-|--------|----------|------|
-| gpt-4o | OpenAI | OpenAI GPT-4o |
-| claude-3-5-sonnet | Anthropic | Claude 3.5 Sonnet |
-| minimax | Minimax | Minimax abab6.5s-chat |
-| glm-4 | 智谱 | GLM-4-flash |
-| qwen-coder | Ollama | 本地 Qwen 2.5 Coder |
+| 模型名 | Provider | 说明 | 支持图片 |
+|--------|----------|------|---------|
+| gpt-4o | OpenAI | OpenAI GPT-4o | ✅ |
+| claude-3-5-sonnet | Anthropic | Claude 3.5 Sonnet | ✅ |
+| minimax | Minimax | Minimax abab6.5s-chat | ❌ |
+| glm-4 | 智谱 | GLM-4-flash | ❌ |
+| qwen-coder | Ollama | 本地 Qwen 2.5 Coder | ❌ |
 
 ## 快速开始 (Docker)
 
@@ -153,6 +175,13 @@ WHERE ai_filter('minimax', '金额大于1000且状态是已完成',
 
 -- 获取 schema 信息
 SELECT get_schema_info();
+
+-- 使用 ai_image_describe 描述图片
+SELECT ai_image_describe('gpt-4o', 'https://httpbin.org/image/png');
+
+-- 使用 ai_image_filter 过滤图片
+SELECT * FROM products
+WHERE ai_image_filter('gpt-4o', image_url, '粉色的卡通猪脸');
 ```
 
 ## 测试 (Python)
