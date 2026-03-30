@@ -119,3 +119,37 @@ COMMENT ON FUNCTION ai_filter(TEXT, TEXT, TEXT) IS
 COMMENT ON FUNCTION get_schema_info() IS 
 '获取当前数据库public schema的表结构信息';
 COMMENT ON FUNCTION list_models() IS '列出所有可用模型';
+
+-- ========== ai_image_filter ==========
+
+CREATE OR REPLACE FUNCTION ai_image_filter(
+    model_name TEXT,
+    image_source TEXT,
+    description TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.ai_image import ai_image_filter
+return ai_image_filter(model_name, image_source, description)
+$$;
+
+-- ========== ai_image_describe ==========
+
+CREATE OR REPLACE FUNCTION ai_image_describe(
+    model_name TEXT,
+    image_source TEXT
+)
+RETURNS TEXT
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.ai_image import ai_image_describe
+return ai_image_describe(model_name, image_source)
+$$;
+
+-- ========== 注释 ==========
+
+COMMENT ON FUNCTION ai_image_filter(TEXT, TEXT, TEXT) IS
+'判断图片是否符合描述。参数: model_name-模型名称, image_source-图片URL或本地路径, description-描述文本';
+COMMENT ON FUNCTION ai_image_describe(TEXT, TEXT) IS
+'生成图片描述。参数: model_name-模型名称, image_source-图片URL或本地路径';
