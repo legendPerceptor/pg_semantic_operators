@@ -23,7 +23,8 @@ RUN pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 # Copy project and install Python package
 WORKDIR /app
 COPY pyproject.toml README.md .env* ./
-RUN pip3 install --break-system-packages -e .
+COPY pg_semantic_operators/ pg_semantic_operators/
+RUN pip3 install --break-system-packages .
 
 # Copy SQL extension files
 COPY sql/pg_semantic_operators--1.0.sql /docker-entrypoint-initdb.d/
