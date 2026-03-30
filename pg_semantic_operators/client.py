@@ -4,7 +4,7 @@
 
 import json
 import re
-from typing import Any, List
+from typing import Any, Dict, List
 from .config import get_model_config
 
 
@@ -146,12 +146,68 @@ def _call_glm(model_name: str, prompt: str, **kwargs) -> str:
     return response.choices[0].message.content
 
 
+def _call_openai_with_image(model_name: str, prompt: str, image_data: Dict[str, str], **kwargs) -> str:
+    from openai import OpenAI
+    config = get_model_config(model_name)
+    client = OpenAI(
+        api_key=config["api_key"],
+        base_url=config.get("base_url", "https://api.openai.com/v1")
+    )
+    content = [
+        {"type": "image_url", "image_url": {"url": f"data:{image_data['media_type']};base64,{image_data['data']}"}},
+        {"type": "text", "text": prompt}
+    ]
+    response = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": content}],
+        **kwargs
+    )
+    return response.choices[0].message.content
+
+
+def _call_minimax_with_image(model_name: str, prompt: str, image_data: Dict[str, str], **kwargs) -> str:
+    import requests
+    config = get_model_config(model_name)
+    base_url = config.get("base_url", "https://api.minimaxi.com/anthropic")
+    api_key = config["api_key"]
+    content = [
+        {"type": "image_url", "source": {"type": "base64", "media_type": image_data["media_type"], "data": image_data["data"]}},
+        {"type": "text", "text": prompt}
+    ]
+    response = requests.post(
+        f"{base_url}/v1/messages",
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+        },
+        json={
+            "model": config["model"],
+            "max_tokens": kwargs.get("max_tokens", 4096),
+            "messages": [{"role": "user", "content": content}]
+        },
+        timeout=kwargs.get("timeout", 120)
+    )
+    response.raise_for_status()
+    response_json = response.json()
+    for item in response_json.get("content", []):
+        if item.get("type") == "text":
+            return item.get("text", "")
+    return response_json["content"][0].get("text", "")
+
+
 PROVIDER_HANDLERS = {
     "openai": _call_openai,
     "anthropic": _call_anthropic,
     "ollama": _call_ollama,
     "minimax": _call_minimax,
     "glm": _call_glm,
+}
+
+
+PROVIDER_HANDLERS_WITH_IMAGE = {
+    "openai": _call_openai_with_image,
+    "minimax": _call_minimax_with_image,
 }
 
 
@@ -175,3 +231,12 @@ def call_model(model_name: str, prompt: str, **kwargs) -> str:
         raise ValueError(f"Unknown provider: {provider}")
     
     return handler(model_name, prompt, **kwargs)
+
+
+def call_model_with_image(model_name: str, prompt: str, image_data: Dict[str, str], **kwargs) -> str:
+    config = get_model_config(model_name)
+    provider = config["provider"]
+    handler = PROVIDER_HANDLERS_WITH_IMAGE.get(provider)
+    if not handler:
+        raise ValueError(f"模型 {model_name} 不支持图片输入")
+    return handler(model_name, prompt, image_data, **kwargs)
