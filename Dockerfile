@@ -1,5 +1,13 @@
 FROM postgres:18
 
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+
+# Configure proxy for build (bypass for apt.postgresql.org)
+ENV HTTP_PROXY=${HTTP_PROXY:-}
+ENV HTTPS_PROXY=${HTTPS_PROXY:-}
+ENV NO_PROXY=deb.debian.org,security.debian.org,mirrors.tuna.tsinghua.edu.cn,pypi.tuna.tsinghua.edu.cn
+
 RUN if [ -f /etc/apt/sources.list ]; then \
       sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list && \
       sed -i 's|http://security.debian.org/debian-security|http://mirrors.tuna.tsinghua.edu.cn/debian-security|g' /etc/apt/sources.list; \
