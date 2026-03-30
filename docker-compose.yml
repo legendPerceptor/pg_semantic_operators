@@ -3,11 +3,15 @@ services:
     build:
       context: .
       network: host
+    network: proxy-net
     container_name: pg_semantic
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: semantic_test
+      HTTP_PROXY: "${XRAY_URL:-http://xray:1087}"
+      HTTPS_PROXY: ${XRAY_URL:-http://xray:1087}"
+      NO_PROXY: "${NO_PROXY_URL:-localhost,127.0.0.1,*.feishu.cn,*.larksuite.com,*.larkoffice.com,open.feishu.cn,open.larksuite.com,bigmodel.cn,open.bigmodel.cn,api.minimaxi.com}"
     ports:
       - "5438:5432"
     volumes:
@@ -21,3 +25,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  proxy-net:
+    external: true
