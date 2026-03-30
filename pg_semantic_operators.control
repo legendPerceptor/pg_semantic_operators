@@ -1,0 +1,7 @@
+# pg_semantic_operators extension
+comment = 'PostgreSQL 语义算子扩展 - AI-powered query and filter operators'
+default_version = '1.0'
+encoding = 'UTF8'
+module_pathname = '$libdir/pg_semantic_operators'
+relocatable = false
+requires = 'plpython3u'
