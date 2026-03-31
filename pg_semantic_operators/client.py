@@ -160,6 +160,7 @@ def _call_openai_with_image(model_name: str, prompt: str, image_data: Dict[str, 
     response = client.chat.completions.create(
         model=config["model"],
         messages=[{"role": "user", "content": content}],
+        modalities=["text"],
         **kwargs
     )
     return response.choices[0].message.content
@@ -203,13 +204,21 @@ def _call_openai_with_audio(model_name: str, prompt: str, audio_data: Dict[str, 
         api_key=config["api_key"],
         base_url=config.get("base_url", "https://api.openai.com/v1")
     )
+    # Map media type to OpenAI-supported format
+    media_type = audio_data["media_type"]
+    format_map = {
+        "audio/mpeg": "mp3",
+        "audio/wav": "wav",
+        "audio/mp4": "mp4",
+    }
+    audio_format = format_map.get(media_type, media_type.split("/")[-1])
+
     content = [
         {
-            "type": "audio",
-            "source": {
-                "type": "base64",
-                "media_type": audio_data["media_type"],
-                "data": audio_data["data"]
+            "type": "input_audio",
+            "input_audio": {
+                "data": audio_data["data"],
+                "format": audio_format
             }
         },
         {"type": "text", "text": prompt}
