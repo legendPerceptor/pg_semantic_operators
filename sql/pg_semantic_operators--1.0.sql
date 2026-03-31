@@ -147,6 +147,33 @@ from pg_semantic_operators.operators.ai_image import ai_image_describe
 return ai_image_describe(model_name, image_source)
 $$;
 
+-- ========== ai_audio_filter ==========
+
+CREATE OR REPLACE FUNCTION ai_audio_filter(
+    model_name TEXT,
+    audio_source TEXT,
+    description TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.ai_audio import ai_audio_filter
+return ai_audio_filter(model_name, audio_source, description)
+$$;
+
+-- ========== ai_audio_describe ==========
+
+CREATE OR REPLACE FUNCTION ai_audio_describe(
+    model_name TEXT,
+    audio_source TEXT
+)
+RETURNS TEXT
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.ai_audio import ai_audio_describe
+return ai_audio_describe(model_name, audio_source)
+$$;
+
 -- ========== 注释 ==========
 
 COMMENT ON FUNCTION ai_image_filter(TEXT, TEXT, TEXT) IS
