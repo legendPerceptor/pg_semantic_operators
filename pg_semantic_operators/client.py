@@ -196,6 +196,32 @@ def _call_minimax_with_image(model_name: str, prompt: str, image_data: Dict[str,
     return response_json["content"][0].get("text", "")
 
 
+def _call_openai_with_audio(model_name: str, prompt: str, audio_data: Dict[str, str], **kwargs) -> str:
+    from openai import OpenAI
+    config = get_model_config(model_name)
+    client = OpenAI(
+        api_key=config["api_key"],
+        base_url=config.get("base_url", "https://api.openai.com/v1")
+    )
+    content = [
+        {
+            "type": "audio",
+            "source": {
+                "type": "base64",
+                "media_type": audio_data["media_type"],
+                "data": audio_data["data"]
+            }
+        },
+        {"type": "text", "text": prompt}
+    ]
+    response = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": content}],
+        **kwargs
+    )
+    return response.choices[0].message.content
+
+
 PROVIDER_HANDLERS = {
     "openai": _call_openai,
     "anthropic": _call_anthropic,
@@ -208,6 +234,11 @@ PROVIDER_HANDLERS = {
 PROVIDER_HANDLERS_WITH_IMAGE = {
     "openai": _call_openai_with_image,
     "minimax": _call_minimax_with_image,
+}
+
+
+PROVIDER_HANDLERS_WITH_AUDIO_ONLY = {
+    "openai": _call_openai_with_audio,
 }
 
 
@@ -240,3 +271,12 @@ def call_model_with_image(model_name: str, prompt: str, image_data: Dict[str, st
     if not handler:
         raise ValueError(f"模型 {model_name} 不支持图片输入")
     return handler(model_name, prompt, image_data, **kwargs)
+
+
+def call_model_with_audio(model_name: str, prompt: str, audio_data: Dict[str, str], **kwargs) -> str:
+    config = get_model_config(model_name)
+    provider = config["provider"]
+    handler = PROVIDER_HANDLERS_WITH_AUDIO_ONLY.get(provider)
+    if not handler:
+        raise ValueError(f"模型 {model_name} 不支持音频输入")
+    return handler(model_name, prompt, audio_data, **kwargs)
