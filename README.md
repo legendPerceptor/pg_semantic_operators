@@ -100,6 +100,9 @@ cp .env.example .env
 # 构建并启动
 docker compose up -d --build
 
+# 安装pg_semantic_operators插件，它依赖plpython3u所以需要CASCADE来安装前置插件
+docker exec pg_semantic psql -U postgres -d semantic_test -c "CREATE EXTENSION pg_semantic_operators CASCADE;"
+
 # 查看日志
 docker compose logs -f
 ```

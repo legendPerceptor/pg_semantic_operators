@@ -38,6 +38,12 @@ DEFAULT_CONFIG = {
         "api_key": os.getenv("OPENAI_API_KEY"),
         "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     },
+    "gpt-4o-audio-preview": {
+        "provider": "openai",
+        "model": "gpt-4o-audio-preview",
+        "api_key": os.getenv("OPENAI_API_KEY"),
+        "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    },
     "claude-3-5-sonnet": {
         "provider": "anthropic",
         "model": "claude-3-5-sonnet-20241022",
