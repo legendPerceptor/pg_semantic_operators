@@ -46,6 +46,28 @@ SELECT ai_image_describe('gpt-4o', 'https://example.com/image.jpg');
 SELECT ai_image_describe('gpt-4o', '/path/to/image.jpg');
 ```
 
+### ai_audio_filter(model_name, audio_source, description) → boolean
+根据描述判断音频是否符合条件，返回 true/false。audio_source 可以是 URL 或本地文件路径。
+
+```sql
+-- 判断音频是否为中文
+SELECT ai_audio_filter('gpt-4o-audio-preview', '/path/to/audio.mp3', '中文');
+
+-- 判断音频是否包含特定主题
+SELECT ai_audio_filter('gpt-4o-audio-preview', 'https://example.com/audio.mp3', '包含天气预报');
+```
+
+### ai_audio_describe(model_name, audio_source) → text
+生成音频的自然语言描述，包括语言、说话人数量、主题等。audio_source 可以是 URL 或本地文件路径。
+
+```sql
+-- 描述本地音频
+SELECT ai_audio_describe('gpt-4o-audio-preview', '/path/to/audio.mp3');
+
+-- 描述网络音频
+SELECT ai_audio_describe('gpt-4o-audio-preview', 'https://example.com/audio.mp3');
+```
+
 ### get_schema_info() → text
 获取当前数据库 public schema 的表结构信息。
 
@@ -54,13 +76,14 @@ SELECT ai_image_describe('gpt-4o', '/path/to/image.jpg');
 
 ## 支持的模型
 
-| 模型名 | Provider | 说明 | 支持图片 |
-|--------|----------|------|---------|
-| gpt-4o | OpenAI | OpenAI GPT-4o | ✅ |
-| claude-3-5-sonnet | Anthropic | Claude 3.5 Sonnet | ✅ |
-| minimax | Minimax | Minimax abab6.5s-chat | ❌ |
-| glm-4 | 智谱 | GLM-4-flash | ❌ |
-| qwen-coder | Ollama | 本地 Qwen 2.5 Coder | ❌ |
+| 模型名 | Provider | 说明 | 支持图片 | 支持音频 |
+|--------|----------|------|---------|---------|
+| gpt-4o | OpenAI | OpenAI GPT-4o | ✅ | ❌ |
+| gpt-4o-audio-preview | OpenAI | OpenAI GPT-4o Audio | ❌ | ✅ |
+| claude-3-5-sonnet | Anthropic | Claude 3.5 Sonnet | ✅ | ❌ |
+| minimax | Minimax | Minimax abab6.5s-chat | ❌ | ❌ |
+| glm-4 | 智谱 | GLM-4-flash | ❌ | ❌ |
+| qwen-coder | Ollama | 本地 Qwen 2.5 Coder | ❌ | ❌ |
 
 ## 快速开始 (Docker)
 
@@ -76,6 +99,9 @@ cp .env.example .env
 ```bash
 # 构建并启动
 docker compose up -d --build
+
+# 安装pg_semantic_operators插件，它依赖plpython3u所以需要CASCADE来安装前置插件
+docker exec pg_semantic psql -U postgres -d semantic_test -c "CREATE EXTENSION pg_semantic_operators CASCADE;"
 
 # 查看日志
 docker compose logs -f
@@ -182,6 +208,13 @@ SELECT ai_image_describe('gpt-4o', 'https://httpbin.org/image/png');
 -- 使用 ai_image_filter 过滤图片
 SELECT * FROM products
 WHERE ai_image_filter('gpt-4o', image_url, '粉色的卡通猪脸');
+
+-- 使用 ai_audio_describe 描述音频
+SELECT ai_audio_describe('gpt-4o-audio-preview', '/path/to/audio.mp3');
+
+-- 使用 ai_audio_filter 过滤音频
+SELECT * FROM audio_records
+WHERE ai_audio_filter('gpt-4o-audio-preview', audio_url, '中文');
 ```
 
 ## 测试 (Python)
