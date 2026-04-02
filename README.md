@@ -193,10 +193,19 @@ docker exec pg_semantic psql -U postgres -d semantic_test -c "SELECT ai_filter('
 
 ### 5. 运行完整测试
 
+测试多模态算子基本功能。
+
 ```bash
 # 将测试脚本复制到容器并运行
 docker cp sql/test.sql pg_semantic:/tmp/test.sql
 docker exec pg_semantic psql -U postgres -d semantic_test -f /tmp/test.sql
+```
+
+测试批量处理算子。
+
+```bash
+docker cp sql/test_batch.sql pg_semantic:/tmp/test_batch.sql
+docker exec pg_semantic psql -U postgres -d semantic_test -f /tmp/test_batch.sql
 ```
 
 ## Docker 代理配置
