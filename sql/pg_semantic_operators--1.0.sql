@@ -180,3 +180,77 @@ COMMENT ON FUNCTION ai_image_filter(TEXT, TEXT, TEXT) IS
 '判断图片是否符合描述。参数: model_name-模型名称, image_source-图片URL或本地路径, description-描述文本';
 COMMENT ON FUNCTION ai_image_describe(TEXT, TEXT) IS
 '生成图片描述。参数: model_name-模型名称, image_source-图片URL或本地路径';
+
+-- ========== ai_filter_batch ==========
+
+CREATE OR REPLACE FUNCTION ai_filter_batch(
+    model_name TEXT,
+    condition TEXT,
+    row_data_array JSONB,
+    batch_size INTEGER DEFAULT 10
+)
+RETURNS JSONB
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.batch import ai_filter_batch
+result = ai_filter_batch(model_name, condition, row_data_array, batch_size)
+return result
+$$;
+
+-- ========== ai_image_filter_batch ==========
+
+CREATE OR REPLACE FUNCTION ai_image_filter_batch(
+    model_name TEXT,
+    image_sources JSONB,
+    description TEXT,
+    batch_size INTEGER DEFAULT 10
+)
+RETURNS JSONB
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.batch import ai_image_filter_batch
+result = ai_image_filter_batch(model_name, image_sources, description, batch_size)
+return result
+$$;
+
+-- ========== ai_image_describe_batch ==========
+
+CREATE OR REPLACE FUNCTION ai_image_describe_batch(
+    model_name TEXT,
+    image_sources JSONB,
+    batch_size INTEGER DEFAULT 10
+)
+RETURNS JSONB
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.batch import ai_image_describe_batch
+result = ai_image_describe_batch(model_name, image_sources, batch_size)
+return result
+$$;
+
+-- ========== ai_query_batch ==========
+
+CREATE OR REPLACE FUNCTION ai_query_batch(
+    model_name TEXT,
+    user_prompts JSONB,
+    schema_info TEXT DEFAULT NULL,
+    batch_size INTEGER DEFAULT 10
+)
+RETURNS JSONB
+LANGUAGE plpython3u
+AS $$
+from pg_semantic_operators.operators.batch import ai_query_batch
+result = ai_query_batch(model_name, user_prompts, schema_info, batch_size)
+return result
+$$;
+
+-- ========== 注释 ==========
+
+COMMENT ON FUNCTION ai_filter_batch(TEXT, TEXT, JSONB, INTEGER) IS
+'批量语义过滤。参数: model_name-模型名称, condition-过滤条件, row_data_array-行数据数组(JSONB), batch_size-批大小(默认10)';
+COMMENT ON FUNCTION ai_image_filter_batch(TEXT, JSONB, TEXT, INTEGER) IS
+'批量图片过滤。参数: model_name-模型名称, image_sources-图片URL数组(JSONB), description-描述文本, batch_size-批大小(默认10)';
+COMMENT ON FUNCTION ai_image_describe_batch(TEXT, JSONB, INTEGER) IS
+'批量图片描述。参数: model_name-模型名称, image_sources-图片URL数组(JSONB), batch_size-批大小(默认10)';
+COMMENT ON FUNCTION ai_query_batch(TEXT, JSONB, TEXT, INTEGER) IS
+'批量SQL查询生成。参数: model_name-模型名称, user_prompts-用户查询数组(JSONB), schema_info-数据库结构, batch_size-批大小(默认10)';
