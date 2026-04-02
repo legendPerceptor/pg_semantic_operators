@@ -68,6 +68,76 @@ SELECT ai_audio_describe('gpt-4o-audio-preview', '/path/to/audio.mp3');
 SELECT ai_audio_describe('gpt-4o-audio-preview', 'https://example.com/audio.mp3');
 ```
 
+## 批量处理算子
+
+批量处理算子可以在单次或并发 API 调用中处理多条数据，显著提高效率。
+
+### ai_filter_batch(model_name, condition, row_data_array [, batch_size]) → jsonb
+批量语义过滤，在单次 API 调用中处理多行数据。
+
+```sql
+-- 批量过滤订单
+SELECT * FROM jsonb_to_recordset(
+  ai_filter_batch('gpt-4o', '金额大于1000',
+    '[{"金额": 1500}, {"金额": 500}, {"金额": 2000}]'::jsonb)
+) AS t(id int, result boolean);
+
+-- 配合表数据使用
+SELECT t.*, r.result
+FROM orders t,
+  jsonb_to_recordset(
+    ai_filter_batch('minimax', '高价值订单',
+      (SELECT jsonb_agg(row_to_json(t)::jsonb) FROM (
+        SELECT id, customer_name, amount, status FROM orders LIMIT 20
+      ) t))
+  ) AS r(id int, result boolean)
+WHERE t.id = r.id AND r.result = true;
+```
+
+### ai_image_filter_batch(model_name, image_sources, description [, batch_size]) → jsonb
+批量图片过滤，使用并发处理提高吞吐量。
+
+```sql
+-- 批量判断图片
+SELECT * FROM jsonb_to_recordset(
+  ai_image_filter_batch('gpt-4o',
+    '["https://example.com/img1.jpg", "https://example.com/img2.jpg"]'::jsonb,
+    '包含猫')
+) AS t(index int, result boolean);
+```
+
+### ai_image_describe_batch(model_name, image_sources [, batch_size]) → jsonb
+批量图片描述，使用并发处理提高吞吐量。
+
+```sql
+-- 批量描述图片
+SELECT * FROM jsonb_to_recordset(
+  ai_image_describe_batch('gpt-4o',
+    '["https://example.com/img1.jpg", "https://example.com/img2.jpg"]'::jsonb)
+) AS t(index int, description text);
+```
+
+### ai_query_batch(model_name, user_prompts [, schema_info, batch_size]) → jsonb
+批量 SQL 查询生成，在单次 API 调用中生成多条 SQL。
+
+```sql
+-- 批量生成 SQL
+SELECT * FROM jsonb_to_recordset(
+  ai_query_batch('minimax',
+    '["查询所有用户", "统计订单总数", "找出金额最高的订单"]'::jsonb,
+    get_schema_info())
+) AS t(index int, sql text);
+```
+
+### 批量大小限制
+
+| 算子 | 默认批量大小 | 最大批量大小 | 说明 |
+|------|-------------|-------------|------|
+| ai_filter_batch | 10 | 20 | 单次 API 调用处理 |
+| ai_image_filter_batch | 10 | 10 | 并发处理 (OpenAI 限制) |
+| ai_image_describe_batch | 10 | 10 | 并发处理 (OpenAI 限制) |
+| ai_query_batch | 10 | 20 | 单次 API 调用处理 |
+
 ### get_schema_info() → text
 获取当前数据库 public schema 的表结构信息。
 
@@ -300,8 +370,12 @@ pg_semantic_operators/
 │   ├── __init__.py
 │   ├── config.py                      # 配置管理
 │   ├── client.py                      # 模型调用客户端
-│   ├── operators.py                   # 算子实现
 │   └── operators/                     # 算子子模块
+│       ├── ai_filter.py               # 语义过滤
+│       ├── ai_query.py                # SQL 生成
+│       ├── ai_image.py                # 图片算子
+│       ├── ai_audio.py                # 音频算子
+│       └── batch.py                   # 批量处理算子
 ├── sql/
 │   ├── pg_semantic_operators--1.0.sql # SQL 扩展定义
 │   └── test.sql                       # 测试脚本
