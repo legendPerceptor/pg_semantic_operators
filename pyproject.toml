@@ -8,6 +8,7 @@ dependencies = [
     "openai",
     "anthropic",
     "requests",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]

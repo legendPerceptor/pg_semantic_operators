@@ -9,3 +9,4 @@ build/
 .pg_semantic/
 models.json
 uv.lock
+draft/

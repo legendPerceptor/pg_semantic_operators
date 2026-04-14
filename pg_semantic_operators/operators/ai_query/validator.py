@@ -43,8 +43,8 @@ _ERROR_TAXONOMY = {
     },
     "join_missing": {
         "patterns": [
-            r"invalid reference to FROM-clause entry",
-            r"missing FROM-clause entry",
+            r"invalid reference to from-clause entry",
+            r"missing from-clause entry",
             r"ambiguous column reference",
         ],
         "hint": "JOIN 条件缺失或有歧义，请检查表之间的关联关系和外键约束。",
