@@ -1,92 +1,110 @@
 # pg_semantic_operators
 
-PostgreSQL 语义算子扩展，提供基于 AI 的查询和过滤功能。
+[中文](docs/README_zh.md) | English
 
-## 功能
+A PostgreSQL extension providing AI-powered query and filtering capabilities.
+
+## Features
 
 ### ai_query(model_name, user_prompt [, schema_info]) → text
-将自然语言转换为 SQL 查询语句。
+
+Converts natural language to SQL queries using a six-stage NL2SQL pipeline:
+
+1. **Schema Linking** — Intelligently filters tables/columns relevant to the question
+2. **Prompt Engineering** — Operator registry, few-shot examples, domain knowledge injection
+3. **SQL Generation** — Calls LLM to generate SQL
+4. **Validation & Self-Correction** — Syntax validation + LLM-based auto-correction (up to N retries)
+5. **Candidate Selection** — Multi-candidate voting (reserved for future)
+6. **Security Check** — SQL injection prevention, dangerous operation filtering, auto LIMIT
 
 ```sql
--- 简单用法
-SELECT ai_query('minimax', '找出最近一周的订单');
+-- Simple usage
+SELECT ai_query('minimax', 'Find orders from the past week');
 
--- 带 schema 信息（推荐）
-SELECT ai_query('minimax', '找出最近一周的订单', get_schema_info());
+-- With schema info (recommended)
+SELECT ai_query('minimax', 'Find orders from the past week', get_schema_info());
+
+-- With enhanced parameters
+SELECT ai_query('minimax', 'Find high-value orders', get_schema_info_enhanced(),
+    auto_correct := true,
+    max_retries := 2,
+    read_only := true,
+    max_limit := 1000
+);
 ```
 
 ### ai_filter(model_name, condition, row_data) → boolean
-根据语义条件判断是否匹配，返回 true/false。
+
+Evaluates whether a row matches a semantic condition, returns true/false.
 
 ```sql
 SELECT * FROM orders
-WHERE ai_filter('minimax', '金额大于1000且状态是已完成',
+WHERE ai_filter('minimax', 'amount greater than 1000 and status is completed',
                 jsonb_build_object('status', status, 'amount', amount));
 ```
 
 ### ai_image_filter(model_name, image_source, description) → boolean
-根据描述判断图片是否符合条件，返回 true/false。image_source 可以是 URL 或本地文件路径。
+
+Determines whether an image matches a description, returns true/false. `image_source` can be a URL or local file path.
 
 ```sql
--- 判断网络图片
-SELECT ai_image_filter('gpt-4o', 'https://example.com/image.jpg', '产品照片');
+-- From URL
+SELECT ai_image_filter('gpt-4o', 'https://example.com/image.jpg', 'product photo');
 
--- 判断本地图片
-SELECT ai_image_filter('gpt-4o', '/path/to/image.jpg', '包含猫');
+-- From local file
+SELECT ai_image_filter('gpt-4o', '/path/to/image.jpg', 'contains a cat');
 ```
 
 ### ai_image_describe(model_name, image_source) → text
-生成图片的自然语言描述。image_source 可以是 URL 或本地文件路径。
+
+Generates a natural language description of an image. `image_source` can be a URL or local file path.
 
 ```sql
--- 描述网络图片
 SELECT ai_image_describe('gpt-4o', 'https://example.com/image.jpg');
-
--- 描述本地图片
 SELECT ai_image_describe('gpt-4o', '/path/to/image.jpg');
 ```
 
 ### ai_audio_filter(model_name, audio_source, description) → boolean
-根据描述判断音频是否符合条件，返回 true/false。audio_source 可以是 URL 或本地文件路径。
+
+Determines whether an audio clip matches a description, returns true/false. `audio_source` can be a URL or local file path.
 
 ```sql
--- 判断音频是否为中文
-SELECT ai_audio_filter('gpt-4o-audio-preview', '/path/to/audio.mp3', '中文');
+-- Check if audio is in Chinese
+SELECT ai_audio_filter('gpt-4o-audio-preview', '/path/to/audio.mp3', 'Chinese');
 
--- 判断音频是否包含特定主题
-SELECT ai_audio_filter('gpt-4o-audio-preview', 'https://example.com/audio.mp3', '包含天气预报');
+-- Check if audio contains a specific topic
+SELECT ai_audio_filter('gpt-4o-audio-preview', 'https://example.com/audio.mp3', 'weather forecast');
 ```
 
 ### ai_audio_describe(model_name, audio_source) → text
-生成音频的自然语言描述，包括语言、说话人数量、主题等。audio_source 可以是 URL 或本地文件路径。
+
+Generates a natural language description of an audio clip, including language, speaker count, topic, etc. `audio_source` can be a URL or local file path.
 
 ```sql
--- 描述本地音频
 SELECT ai_audio_describe('gpt-4o-audio-preview', '/path/to/audio.mp3');
-
--- 描述网络音频
 SELECT ai_audio_describe('gpt-4o-audio-preview', 'https://example.com/audio.mp3');
 ```
 
-## 批量处理算子
+## Batch Operators
 
-批量处理算子可以在单次或并发 API 调用中处理多条数据，显著提高效率。
+Batch operators process multiple items in a single or concurrent API call, significantly improving efficiency.
 
 ### ai_filter_batch(model_name, condition, row_data_array [, batch_size]) → jsonb
-批量语义过滤，在单次 API 调用中处理多行数据。
+
+Batch semantic filtering, processing multiple rows in a single API call.
 
 ```sql
--- 批量过滤订单
+-- Batch filter orders
 SELECT * FROM jsonb_to_recordset(
-  ai_filter_batch('gpt-4o', '金额大于1000',
-    '[{"金额": 1500}, {"金额": 500}, {"金额": 2000}]'::jsonb)
+  ai_filter_batch('gpt-4o', 'amount greater than 1000',
+    '[{"amount": 1500}, {"amount": 500}, {"amount": 2000}]'::jsonb)
 ) AS t(id int, result boolean);
 
--- 配合表数据使用
+-- With table data
 SELECT t.*, r.result
 FROM orders t,
   jsonb_to_recordset(
-    ai_filter_batch('minimax', '高价值订单',
+    ai_filter_batch('minimax', 'high-value orders',
       (SELECT jsonb_agg(row_to_json(t)::jsonb) FROM (
         SELECT id, customer_name, amount, status FROM orders LIMIT 20
       ) t))
@@ -95,22 +113,22 @@ WHERE t.id = r.id AND r.result = true;
 ```
 
 ### ai_image_filter_batch(model_name, image_sources, description [, batch_size]) → jsonb
-批量图片过滤，使用并发处理提高吞吐量。
+
+Batch image filtering using concurrent processing for higher throughput.
 
 ```sql
--- 批量判断图片
 SELECT * FROM jsonb_to_recordset(
   ai_image_filter_batch('gpt-4o',
     '["https://example.com/img1.jpg", "https://example.com/img2.jpg"]'::jsonb,
-    '包含猫')
+    'contains a cat')
 ) AS t(index int, result boolean);
 ```
 
 ### ai_image_describe_batch(model_name, image_sources [, batch_size]) → jsonb
-批量图片描述，使用并发处理提高吞吐量。
+
+Batch image description using concurrent processing.
 
 ```sql
--- 批量描述图片
 SELECT * FROM jsonb_to_recordset(
   ai_image_describe_batch('gpt-4o',
     '["https://example.com/img1.jpg", "https://example.com/img2.jpg"]'::jsonb)
@@ -118,99 +136,110 @@ SELECT * FROM jsonb_to_recordset(
 ```
 
 ### ai_query_batch(model_name, user_prompts [, schema_info, batch_size]) → jsonb
-批量 SQL 查询生成，在单次 API 调用中生成多条 SQL。
+
+Batch SQL query generation, generating multiple SQL statements in a single API call.
 
 ```sql
--- 批量生成 SQL
 SELECT * FROM jsonb_to_recordset(
   ai_query_batch('minimax',
-    '["查询所有用户", "统计订单总数", "找出金额最高的订单"]'::jsonb,
+    '["Query all users", "Count total orders", "Find the highest amount order"]'::jsonb,
     get_schema_info())
 ) AS t(index int, sql text);
 ```
 
-### 批量大小限制
+### Batch Size Limits
 
-| 算子 | 默认批量大小 | 最大批量大小 | 说明 |
-|------|-------------|-------------|------|
-| ai_filter_batch | 10 | 20 | 单次 API 调用处理 |
-| ai_image_filter_batch | 10 | 10 | 并发处理 (OpenAI 限制) |
-| ai_image_describe_batch | 10 | 10 | 并发处理 (OpenAI 限制) |
-| ai_query_batch | 10 | 20 | 单次 API 调用处理 |
+| Operator | Default Batch Size | Max Batch Size | Description |
+|----------|--------------------|----------------|-------------|
+| ai_filter_batch | 10 | 20 | Single API call processing |
+| ai_image_filter_batch | 10 | 10 | Concurrent processing (OpenAI limit) |
+| ai_image_describe_batch | 10 | 10 | Concurrent processing (OpenAI limit) |
+| ai_query_batch | 10 | 20 | Single API call processing |
 
 ### get_schema_info() → text
-获取当前数据库 public schema 的表结构信息。
+
+Retrieves the table structure information for the `public` schema of the current database.
+
+### get_schema_info_enhanced() → text
+
+Retrieves enhanced schema information in DDL `CREATE TABLE` format, including primary keys, foreign keys, column comments, and example values.
+
+### get_relevant_schema(model_name, question) → text
+
+Intelligently filters tables relevant to the question using LLM, returning a concise schema description.
 
 ### list_models() → text[]
-列出所有可用模型。
 
-## 支持的模型
+Lists all available models.
 
-| 模型名 | Provider | 说明 | 支持图片 | 支持音频 |
-|--------|----------|------|---------|---------|
-| gpt-4o | OpenAI | OpenAI GPT-4o | ✅ | ❌ |
-| gpt-4o-audio-preview | OpenAI | OpenAI GPT-4o Audio | ❌ | ✅ |
-| claude-3-5-sonnet | Anthropic | Claude 3.5 Sonnet | ✅ | ❌ |
-| minimax | Minimax | Minimax abab6.5s-chat | ❌ | ❌ |
-| glm-4 | 智谱 | GLM-4-flash | ❌ | ❌ |
-| qwen-coder | Ollama | 本地 Qwen 2.5 Coder | ❌ | ❌ |
+## Supported Models
 
-## 快速开始 (Docker)
+| Model | Provider | Description | Image Support | Audio Support |
+|-------|----------|-------------|---------------|---------------|
+| gpt-4o | OpenAI | OpenAI GPT-4o | Yes | No |
+| gpt-4o-audio-preview | OpenAI | OpenAI GPT-4o Audio | No | Yes |
+| claude-3-5-sonnet | Anthropic | Claude 3.5 Sonnet | Yes | No |
+| minimax | Minimax | Minimax abab6.5s-chat | No | No |
+| glm-4 | Zhipu | GLM-4-flash | No | No |
+| qwen-coder | Ollama | Local Qwen 2.5 Coder | No | No |
 
-### 1. 配置 API Key
+Models are automatically enabled based on the API keys configured in your `.env` file.
+
+## Quick Start (Docker)
+
+### 1. Configure API Key
 
 ```bash
 cp .env.example .env
-# 编辑 .env 文件，填入你的 API Key
+# Edit .env file and fill in your API keys
 ```
 
-### 2. 启动容器
+### 2. Start Container
 
 ```bash
-# 构建并启动
+# Build and start
 docker compose up -d --build
 
-# 安装pg_semantic_operators插件，它依赖plpython3u所以需要CASCADE来安装前置插件
+# Install the pg_semantic_operators extension (requires CASCADE for plpython3u dependency)
 docker exec pg_semantic psql -U postgres -d semantic_test -c "CREATE EXTENSION pg_semantic_operators CASCADE;"
 
-# 查看日志
+# View logs
 docker compose logs -f
 ```
 
-### 3. 连接数据库
+### 3. Connect to Database
 
 ```bash
-# 进入 psql
+# Enter psql
 docker exec -it pg_semantic psql -U postgres -d semantic_test
 ```
 
-### 4. 快速测试
+### 4. Quick Test
 
 ```bash
-# 测试 minimax 模型
-docker exec pg_semantic psql -U postgres -d semantic_test -c "SELECT ai_filter('minimax', '金额大于100', '{\"金额\": 150}'::jsonb);"
+# Test minimax model
+docker exec pg_semantic psql -U postgres -d semantic_test -c "SELECT ai_filter('minimax', 'amount greater than 100', '{\"amount\": 150}'::jsonb);"
 ```
 
-### 5. 运行完整测试
+### 5. Run Full Tests
 
-测试多模态算子基本功能。
+Test basic multimodal operator functionality.
 
 ```bash
-# 将测试脚本复制到容器并运行
 docker cp sql/test.sql pg_semantic:/tmp/test.sql
 docker exec pg_semantic psql -U postgres -d semantic_test -f /tmp/test.sql
 ```
 
-测试批量处理算子。
+Test batch operators.
 
 ```bash
 docker cp sql/test_batch.sql pg_semantic:/tmp/test_batch.sql
 docker exec pg_semantic psql -U postgres -d semantic_test -f /tmp/test_batch.sql
 ```
 
-## Docker 代理配置
+## Docker Proxy Configuration
 
-如果遇到网络问题，检查 `~/.docker/config.json` 中的代理设置。将 API 域名添加到 `noProxy`:
+If you encounter network issues, check the proxy settings in `~/.docker/config.json`. Add API domains to `noProxy`:
 
 ```json
 {
@@ -224,36 +253,36 @@ docker exec pg_semantic psql -U postgres -d semantic_test -f /tmp/test_batch.sql
 }
 ```
 
-修改后需要重建容器：
+Rebuild the container after modification:
 ```bash
 docker compose down && docker compose up -d --build
 ```
 
-## 本地安装
+## Local Installation
 
-### 前置条件
+### Prerequisites
 
-1. PostgreSQL 18+ (或 16+)
-2. PL/Python3 扩展
+1. PostgreSQL 18+ (or 16+)
+2. PL/Python3 extension
 3. Python 3.8+
 
-### 安装步骤
+### Installation Steps
 
 ```bash
-# 1. 安装 Python 包
+# 1. Install Python package
 pip install -e .
 
-# 2. 安装 SQL 扩展
+# 2. Install SQL extension
 make install
 
-# 3. 在数据库中加载
+# 3. Load in database
 psql -d your_database -f $(pg_config --sharedir)/extension/pg_semantic_operators--1.0.sql
 ```
 
-## 使用示例
+## Usage Examples
 
 ```sql
--- 创建测试表
+-- Create test table
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
     customer_name TEXT,
@@ -263,57 +292,63 @@ CREATE TABLE orders (
 );
 
 INSERT INTO orders (customer_name, amount, status) VALUES
-    ('张三', 500, '进行中'),
-    ('李四', 1500, '已完成'),
-    ('王五', 2000, '已完成');
+    ('Alice', 500, 'in progress'),
+    ('Bob', 1500, 'completed'),
+    ('Charlie', 2000, 'completed');
 
--- 列出可用模型
+-- List available models
 SELECT list_models();
 
--- 使用 ai_query 生成 SQL
-SELECT ai_query('minimax', '找出金额大于1000的订单', get_schema_info());
+-- Generate SQL using ai_query
+SELECT ai_query('minimax', 'Find orders with amount greater than 1000', get_schema_info());
 
--- 使用 ai_filter 过滤数据
+-- Filter data using ai_filter
 SELECT * FROM orders
-WHERE ai_filter('minimax', '金额大于1000且状态是已完成',
+WHERE ai_filter('minimax', 'amount greater than 1000 and status is completed',
                 jsonb_build_object('customer_name', customer_name, 'amount', amount, 'status', status));
 
--- 获取 schema 信息
+-- Get schema info
 SELECT get_schema_info();
 
--- 使用 ai_image_describe 描述图片
+-- Describe an image
 SELECT ai_image_describe('gpt-4o', 'https://httpbin.org/image/png');
 
--- 使用 ai_image_filter 过滤图片
+-- Filter images
 SELECT * FROM products
-WHERE ai_image_filter('gpt-4o', image_url, '粉色的卡通猪脸');
+WHERE ai_image_filter('gpt-4o', image_url, 'pink cartoon pig face');
 
--- 使用 ai_audio_describe 描述音频
+-- Describe audio
 SELECT ai_audio_describe('gpt-4o-audio-preview', '/path/to/audio.mp3');
 
--- 使用 ai_audio_filter 过滤音频
+-- Filter audio
 SELECT * FROM audio_records
-WHERE ai_audio_filter('gpt-4o-audio-preview', audio_url, '中文');
+WHERE ai_audio_filter('gpt-4o-audio-preview', audio_url, 'Chinese');
 ```
 
-## 测试 (Python)
+## Testing (Python)
 
-### 测试所有模型
+### Test All Models
 
 ```bash
 make test-models
 ```
 
-### 快速测试单个模型
+### Quick Test Single Model
 
 ```bash
 make quick_test MODEL=minimax
 make quick_test MODEL=glm-4
 ```
 
-## 配置
+### Unit Tests
 
-### .env 文件
+```bash
+uv run --extra dev pytest tests/test_ai_query/ -v
+```
+
+## Configuration
+
+### .env File
 
 ```env
 # OpenAI
@@ -327,29 +362,29 @@ ANTHROPIC_API_KEY=your-anthropic-api-key
 MINIMAX_API_KEY=your-minimax-api-key
 MINIMAX_BASE_URL=https://api.minimaxi.com/anthropic
 
-# 智谱 GLM
+# Zhipu GLM
 GLM_API_KEY=your-glm-api-key
 
 # Ollama
 OLLAMA_BASE_URL=http://localhost:11434
 ```
 
-### 环境变量
+### Environment Variables
 
-| 变量 | 说明 |
-|------|------|
+| Variable | Description |
+|----------|-------------|
 | `OPENAI_API_KEY` | OpenAI API Key |
 | `ANTHROPIC_API_KEY` | Anthropic API Key |
 | `MINIMAX_API_KEY` | Minimax API Key |
-| `GLM_API_KEY` | 智谱 GLM API Key |
-| `OLLAMA_BASE_URL` | Ollama 地址 |
-| `PG_SEMANTIC_CONFIG` | 自定义模型配置文件路径 |
+| `GLM_API_KEY` | Zhipu GLM API Key |
+| `OLLAMA_BASE_URL` | Ollama server address |
+| `PG_SEMANTIC_CONFIG` | Custom model configuration file path |
 
-## 故障排除
+## Troubleshooting
 
 ### "No module named 'pg_semantic_operators'"
 
-Python 包未安装。解决方案：
+The Python package is not installed. Fix:
 
 ```bash
 pip install -e . --break-system-packages
@@ -357,38 +392,49 @@ pip install -e . --break-system-packages
 
 ### "Connection error"
 
-检查：
-1. API Key 是否配置正确
-2. Docker 代理设置是否正确
-3. 网络连接是否正常
+Check:
+1. API keys are configured correctly
+2. Docker proxy settings are correct
+3. Network connection is working
 
-### Ollama 模型测试失败
+### Ollama Model Test Failure
 
-确保 Ollama 服务正在运行：
+Make sure the Ollama service is running:
 
 ```bash
 ollama serve
 ollama pull qwen2.5-coder
 ```
 
-## 目录结构
+## Project Structure
 
 ```
 pg_semantic_operators/
-├── pg_semantic_operators/              # Python 模块
+├── pg_semantic_operators/              # Python module
 │   ├── __init__.py
-│   ├── config.py                      # 配置管理
-│   ├── client.py                      # 模型调用客户端
-│   └── operators/                     # 算子子模块
-│       ├── ai_filter.py               # 语义过滤
-│       ├── ai_query.py                # SQL 生成
-│       ├── ai_image.py                # 图片算子
-│       ├── ai_audio.py                # 音频算子
-│       └── batch.py                   # 批量处理算子
+│   ├── config.py                      # Configuration management
+│   ├── client.py                      # Model call client
+│   └── operators/                     # Operator sub-modules
+│       ├── ai_filter.py               # Semantic filtering
+│       ├── ai_query/                  # NL2SQL six-stage pipeline
+│       │   ├── __init__.py
+│       │   ├── core.py                # Main entry point
+│       │   ├── schema_linking.py      # Schema linking
+│       │   ├── prompt_builder.py      # Prompt construction
+│       │   ├── validator.py           # SQL validation & self-correction
+│       │   └── security.py            # Security checks
+│       ├── ai_image.py                # Image operators
+│       ├── ai_audio.py                # Audio operators
+│       └── batch.py                   # Batch operators
+├── tests/
+│   └── test_ai_query/                 # ai_query unit tests (133 tests)
 ├── sql/
-│   ├── pg_semantic_operators--1.0.sql # SQL 扩展定义
-│   └── test.sql                       # 测试脚本
-├── pg_semantic_operators.control       # PostgreSQL 扩展控制文件
+│   ├── pg_semantic_operators--1.0.sql # SQL extension definition
+│   └── test.sql                       # Test scripts
+├── docs/
+│   ├── ai_query_improvement_plan.md   # ai_query improvement plan
+│   └── README_zh.md                   # Chinese documentation
+├── pg_semantic_operators.control       # PostgreSQL extension control file
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
